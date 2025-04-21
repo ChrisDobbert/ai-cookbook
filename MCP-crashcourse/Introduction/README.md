@@ -13,27 +13,34 @@ MCP is an open protocol that standardizes how applications provide context to La
 * Best practices for securing your data within your infrastructure
 
 ## Architecture Overview
+- **MCP Hosts**: Programs like Claude Desktop, IDEs, or your python application that want to access data through MCP
+- **MCP Clients**: Protocol clients that maintain 1:1 connections with servers
+- **MCP Servers**: Lightweight programs that each expose specific capabilities through the standardized Model Context Protocol (tools, resources, prompts)
+- **Local Data Sources**: Your computer’s files, databases, and services that MCP servers can securely access
+- **Remote Services**: External systems available over the internet (e.g., through APIs) that MCP servers can connect to
 
 ```mermaid
+---
+config:
+  theme: dark
+  layout: dagre
+---
 flowchart LR
-    subgraph "Your Computer"
-        Host["Host with MCP Client\n(Claude, IDEs, Tools)"]
+ subgraph Computer["Your Computer"]
+        Client["Host with MCP Client<br>(Claude, IDEs, Tools)"]
         ServerA["MCP Server A"]
         ServerB["MCP Server B"]
-        DataA["Local Data A"]
-        DataB["Local Data B"]
-        
-        Host --> ServerA
-        Host --> ServerB
-        ServerA --> DataA
-        ServerB --> DataB
-    end
-    
-    subgraph "Internet"
-        ServiceC["Remote Service C"]
-    end
-    
-    ServerB --> ServiceC
+        ServerC["MCP Server C"]
+        DataA[("Local<br>Data Source A")]
+        DataB[("Local<br>Data Source B")]
+  end
+ subgraph Internet["Internet"]
+        RemoteC[("Remote<br>Service C")]
+  end
+    Client -- MCP Protocol --> ServerA & ServerB & ServerC
+    ServerA <--> DataA
+    ServerB <--> DataB
+    ServerC -- Web APIs --> RemoteC
 ```
 
 
@@ -61,3 +68,54 @@ Let your servers request completions from LLMs, essentially allowing bidirection
 
 <h3><a href="https://modelcontextprotocol.io/docs/concepts/transports">Transports</a></h3>
 The underlying communication mechanisms that connect all MCP components together.
+
+### Transport Mechanisms
+
+MCP supports two main transport mechanisms:
+
+1. **Stdio (Standard IO)**: 
+   - Communication occurs over standard input/output streams
+   - Best for local integrations when the server and client are on the same machine
+   - Simple setup with no network configuration required
+
+2. **SSE (Server-Sent Events)**:
+   - Uses HTTP for client-to-server communication and SSE for server-to-client
+   - Suitable for remote connections across networks
+   - Allows for distributed architectures
+
+Understanding when to use each transport is crucial for building effective MCP implementations:
+
+- Use **Stdio** when building single-application integrations or during development
+- Use **SSE** when you need remote accessibility or are integrating with clients that require it
+
+#### Transport Mechanism Comparison
+
+```mermaid
+---
+config:
+  theme: dark
+  layout: dagre
+---
+flowchart LR
+ subgraph Stdio["Stdio Transport"]
+        Client1["MCP Client"]
+        Server1["MCP Server"]
+  end
+ subgraph SSE["SSE Transport"]
+        Client2["MCP Client"]
+        Server2["MCP Server"]
+  end
+ subgraph Local["Local Deployment"]
+        Stdio
+  end
+ subgraph Remote["Remote Deployment"]
+        SSE
+  end
+    Client1 <-- Stdio<br>(Standard I/O)<br>*(bi-directional)* --> Server1
+    Client2 -- HTTP POST<br>(client to server) --> Server2
+    Server2 -- SSE<br>(server to client) --> Client2
+    style Client1 fill:#000000
+    style Server1 fill:#000000
+    style Client2 fill:#000000
+    style Server2 fill:#000000
+```
